@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TURBO RUSH 3D – Dynamic Car Racing</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#060614;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;user-select:none;}
+canvas{display:block;}
+
+/* ── HUD ── */
+#hud{
+  position:fixed;top:0;left:0;right:0;
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:12px 18px;pointer-events:none;z-index:20;
+}
+.hud-group{display:flex;align-items:center;gap:10px;pointer-events:auto;}
+.hud-box{
+  background:rgba(5,7,20,0.68);
+  border:1px solid rgba(255,255,255,0.18);
+  border-radius:12px;padding:7px 14px;
+  color:#fff;font-size:12px;
+  backdrop-filter:blur(8px);
+}
+.hud-box span{font-size:22px;font-weight:700;display:block;line-height:1.15;}
+
+.hud-btn{
+  background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.28);
+  border-radius:12px;padding:8px 14px;
+  color:#fff;font-size:12px;font-weight:700;
+  font-family:inherit;cursor:pointer;
+  backdrop-filter:blur(8px);
+  transition:all 0.18s;display:flex;align-items:center;gap:6px;
+}
+.hud-btn:hover{background:rgba(255,255,255,0.24);transform:translateY(-1px);border-color:#fff;}
+.hud-btn.danger{background:rgba(255,70,60,0.2);border-color:rgba(255,90,70,0.45);color:#ff9e94;}
+.hud-btn.danger:hover{background:rgba(255,70,60,0.42);border-color:#ff5544;color:#fff;}
+.hud-btn.dayshift{background:rgba(255,200,60,0.18);border-color:rgba(255,215,80,0.45);color:#ffe57f;}
+.hud-btn.dayshift:hover{background:rgba(255,200,60,0.34);border-color:#ffe57f;color:#fff;}
+
+/* Badges */
+.hud-badge{
+  padding:6px 14px;border-radius:20px;
+  font-size:12px;font-weight:800;letter-spacing:0.5px;
+  backdrop-filter:blur(8px);display:inline-flex;align-items:center;gap:5px;
+}
+#diff-badge{
+  border:1.5px solid #64c8ff;color:#64c8ff;background:rgba(100,200,255,0.18);
+}
+#day-badge{
+  border:1.5px solid #ffd54f;color:#ffd54f;background:rgba(255,213,79,0.18);
+  cursor:pointer;pointer-events:auto;transition:all 0.18s;
+}
+#day-badge:hover{transform:scale(1.05);background:rgba(255,213,79,0.3);}
+
+/* Gauges */
+#speedometer{position:fixed;bottom:26px;right:26px;width:130px;height:130px;pointer-events:none;z-index:20;}
+#nitro-bar{position:fixed;bottom:26px;left:26px;width:150px;z-index:20;pointer-events:none;}
+.nitro-label{color:rgba(255,255,255,0.8);font-size:11px;font-weight:800;margin-bottom:4px;letter-spacing:1px;}
+.nitro-track{width:100%;height:12px;background:rgba(255,255,255,0.15);border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);}
+#nitro-fill{height:100%;width:100%;border-radius:6px;transition:width 0.1s;}
+
+#ctrl-hint{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  display:flex;gap:8px;pointer-events:none;z-index:20;
+}
+.key{
+  background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.22);
+  border-radius:8px;padding:4px 9px;color:rgba(255,255,255,0.85);
+  font-size:11px;font-weight:600;backdrop-filter:blur(6px);
+}
+
+/* Toast Notice */
+#toastNotice{
+  position:fixed;top:72px;left:50%;transform:translateX(-50%);
+  background:rgba(10,12,32,0.88);border:1px solid rgba(255,215,80,0.6);
+  border-radius:30px;padding:7px 22px;color:#fff;font-size:13px;font-weight:700;
+  pointer-events:none;z-index:30;opacity:0;transition:opacity 0.3s, transform 0.3s;
+  box-shadow:0 8px 24px rgba(0,0,0,0.5);display:flex;align-items:center;gap:8px;
+}
+#toastNotice.show{opacity:1;transform:translateX(-50%) translateY(6px);}
+
+/* ── OVERLAY / MAIN MENU ── */
+#overlay{
+  position:fixed;inset:0;
+  background:linear-gradient(135deg,#06061e 0%,#150a2e 50%,#061526 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:200;color:#fff;overflow-y:auto;padding:20px;
+}
+#overlay h1{
+  font-size:52px;font-weight:900;
+  background:linear-gradient(90deg,#ff6b35,#f7c948,#4ecdc4,#45b7d1,#c770f0);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:4px;animation:pulse 2s ease-in-out infinite alternate;
+}
+@keyframes pulse{from{filter:drop-shadow(0 0 8px #ff6b35);}to{filter:drop-shadow(0 0 24px #4ecdc4);}}
+.sub{color:rgba(255,255,255,0.55);font-size:15px;margin-bottom:26px;}
+.sect-label{color:rgba(255,255,255,0.45);font-size:11px;letter-spacing:2px;font-weight:800;margin-bottom:10px;}
+
+/* Car select */
+.car-select{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;justify-content:center;}
+.car-opt{
+  width:86px;height:86px;border-radius:14px;border:3px solid transparent;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;font-size:11px;font-weight:800;
+  transition:all 0.18s;background:rgba(255,255,255,0.07);
+}
+.car-opt:hover,.car-opt.sel{border-color:#fff;background:rgba(255,255,255,0.18);transform:scale(1.08);}
+.car-opt .ico{font-size:32px;margin-bottom:4px;}
+
+/* Difficulty select */
+.diff-select{display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap;justify-content:center;}
+.diff-btn{
+  width:130px;border-radius:16px;border:3px solid transparent;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  padding:12px 8px;font-family:inherit;transition:all 0.2s;
+  background:rgba(255,255,255,0.07);color:#fff;
+}
+.diff-btn:hover,.diff-btn.dsel{transform:scale(1.06);background:rgba(255,255,255,0.14);}
+.diff-btn .dico{font-size:26px;margin-bottom:4px;}
+.diff-btn .dname{font-size:14px;font-weight:800;margin-bottom:4px;}
+.diff-btn .dstats{font-size:10px;color:rgba(255,255,255,0.65);line-height:1.55;text-align:center;}
+
+.diff-btn[data-d="veryeasy"]  {border-color:rgba(100,200,255,0.4);}
+.diff-btn[data-d="veryeasy"].dsel, .diff-btn[data-d="veryeasy"]:hover{border-color:#64c8ff;box-shadow:0 0 20px rgba(100,200,255,0.45);}
+.diff-btn[data-d="easy"]      {border-color:rgba(61,220,132,0.4);}
+.diff-btn[data-d="easy"].dsel, .diff-btn[data-d="easy"]:hover{border-color:#3ddc84;box-shadow:0 0 20px rgba(61,220,132,0.45);}
+.diff-btn[data-d="medium"]    {border-color:rgba(247,201,72,0.4);}
+.diff-btn[data-d="medium"].dsel,.diff-btn[data-d="medium"]:hover{border-color:#f7c948;box-shadow:0 0 20px rgba(247,201,72,0.45);}
+.diff-btn[data-d="hard"]      {border-color:rgba(255,80,60,0.4);}
+.diff-btn[data-d="hard"].dsel, .diff-btn[data-d="hard"]:hover{border-color:#ff503c;box-shadow:0 0 20px rgba(255,80,60,0.5);}
+
+#startBtn{
+  padding:14px 46px;font-size:18px;font-weight:800;
+  border:none;border-radius:50px;color:#000;cursor:pointer;
+  transition:all 0.18s;box-shadow:0 0 28px rgba(100,200,255,0.55);
+}
+#startBtn:hover{transform:scale(1.06);}
+
+/* ── PAUSE MODAL ── */
+#pauseModal{
+  position:fixed;inset:0;background:rgba(4,5,16,0.85);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  z-index:220;backdrop-filter:blur(10px);color:#fff;
+}
+#pauseModal h2{
+  font-size:44px;font-weight:900;margin-bottom:6px;
+  background:linear-gradient(90deg,#00c6ff,#0072ff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.pause-actions{display:flex;flex-direction:column;gap:12px;width:280px;margin-top:22px;}
+.pause-btn{
+  padding:13px 20px;font-size:15px;font-weight:800;border-radius:14px;
+  border:none;cursor:pointer;font-family:inherit;transition:all 0.18s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.pause-btn.primary{background:linear-gradient(90deg,#00c6ff,#0072ff);color:#fff;}
+.pause-btn.primary:hover{transform:scale(1.04);box-shadow:0 0 20px rgba(0,198,255,0.5);}
+.pause-btn.sec{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;}
+.pause-btn.sec:hover{background:rgba(255,255,255,0.22);transform:scale(1.04);}
+.pause-btn.danger{background:rgba(255,60,60,0.25);border:1px solid rgba(255,70,70,0.5);color:#ff9e94;}
+.pause-btn.danger:hover{background:rgba(255,60,60,0.45);color:#fff;transform:scale(1.04);}
+
+/* ── GAME OVER ── */
+#gameOver{
+  position:fixed;inset:0;background:rgba(0,0,0,0.85);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  z-index:200;color:#fff;
+}
+#gameOver h2{font-size:52px;font-weight:900;color:#ff4444;margin-bottom:8px;}
+.gos{font-size:19px;color:rgba(255,255,255,0.85);margin-bottom:6px;}
+#goMult{font-size:13px;margin-bottom:24px;padding:4px 14px;border-radius:10px;display:inline-block;}
+.go-btns{display:flex;gap:12px;}
+#restartBtn{
+  padding:12px 34px;font-size:16px;font-weight:800;
+  background:linear-gradient(90deg,#4ecdc4,#45b7d1);
+  border:none;border-radius:50px;color:#000;cursor:pointer;transition:all 0.18s;
+}
+#menuBtn{
+  padding:12px 34px;font-size:16px;font-weight:800;
+  background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.3);
+  border-radius:50px;color:#fff;cursor:pointer;transition:all 0.18s;
+}
+#restartBtn:hover,#menuBtn:hover{transform:scale(1.05);}
+</style>
+</head>
+<body>
+
+<!-- MAIN MENU -->
+<div id="overlay">
+  <h1>🏎 TURBO RUSH 3D</h1>
+  <p class="sub">Dynamic Day Shift · Custom Colourful Cars · Dodge or Cruise!</p>
+
+  <div class="sect-label">CHOOSE YOUR CAR</div>
+  <div class="car-select">
+    <div class="car-opt sel" data-color="#ff4422"><div class="ico">🔴</div>BLAZE</div>
+    <div class="car-opt" data-color="#00bfff"><div class="ico">🔵</div>AQUA</div>
+    <div class="car-opt" data-color="#f7c948"><div class="ico">🟡</div>FLASH</div>
+    <div class="car-opt" data-color="#3ddc84"><div class="ico">🟢</div>VIPER</div>
+    <div class="car-opt" data-color="#c770f0"><div class="ico">🟣</div>PHANTOM</div>
+  </div>
+
+  <div class="sect-label">SELECT DIFFICULTY</div>
+  <div class="diff-select">
+    <!-- VERY EASY -->
+    <button class="diff-btn dsel" data-d="veryeasy">
+      <span class="dico">🩵</span>
+      <span class="dname" style="color:#64c8ff">VERY EASY</span>
+      <span class="dstats">
+        🚗 Peaceful cruise<br>
+        🚦 NO obstacles!<br>
+        ⚡ Instant nitro<br>
+        🎯 Score ×0.5
+      </span>
+    </button>
+    <!-- EASY -->
+    <button class="diff-btn" data-d="easy">
+      <span class="dico">🟢</span>
+      <span class="dname" style="color:#3ddc84">EASY</span>
+      <span class="dstats">
+        🚗 Slow speed<br>
+        🚦 Light traffic<br>
+        ⚡ Fast nitro refill<br>
+        🎯 Score ×1
+      </span>
+    </button>
+    <!-- MEDIUM -->
+    <button class="diff-btn" data-d="medium">
+      <span class="dico">🟡</span>
+      <span class="dname" style="color:#f7c948">MEDIUM</span>
+      <span class="dstats">
+        🚗 Moderate speed<br>
+        🚦 Normal traffic<br>
+        ⚡ Normal nitro<br>
+        🎯 Score ×2
+      </span>
+    </button>
+    <!-- HARD -->
+    <button class="diff-btn" data-d="hard">
+      <span class="dico">🔴</span>
+      <span class="dname" style="color:#ff503c">HARD</span>
+      <span class="dstats">
+        🚗 Blazing speed<br>
+        🚦 Heavy traffic<br>
+        ⚡ Slow nitro refill<br>
+        🎯 Score ×3
+      </span>
+    </button>
+  </div>
+
+  <button id="startBtn">START RACE 🚀</button>
+</div>
+
+<!-- PAUSE MODAL -->
+<div id="pauseModal">
+  <h2>⏸️ RACE PAUSED</h2>
+  <p class="gos">Catch your breath, driver!</p>
+  <div class="pause-actions">
+    <button id="resumeBtn" class="pause-btn primary">▶️ RESUME RACE</button>
+    <button id="pauseDayShiftBtn" class="pause-btn sec">⏱ SHIFT TIME OF DAY</button>
+    <button id="pauseMenuBtn" class="pause-btn danger">🏠 RETURN TO MAIN MENU</button>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameOver">
+  <h2>💥 CRASHED!</h2>
+  <p class="gos" id="goText">Score: 0</p>
+  <p id="goMult">EASY · ×1 multiplier</p>
+  <div class="go-btns">
+    <button id="restartBtn">RACE AGAIN 🏁</button>
+    <button id="menuBtn">MAIN MENU</button>
+  </div>
+</div>
+
+<!-- TOAST NOTICE -->
+<div id="toastNotice">⏱ Time Shifted: ☀️ DAY</div>
+
+<!-- HUD -->
+<div id="hud">
+  <!-- Left: Stats -->
+  <div class="hud-group">
+    <div class="hud-box">🏁 Score<span id="sScore">0</span></div>
+    <div class="hud-box">🚀 Speed<span id="sSpeed">0 km/h</span></div>
+    <div class="hud-box">⭐ Best<span id="sBest">0</span></div>
+  </div>
+
+  <!-- Center: Badges -->
+  <div class="hud-group">
+    <div id="diff-badge" class="hud-badge">🩵 VERY EASY</div>
+    <div id="day-badge" class="hud-badge" title="Click to shift day/night!">☀️ DAY ▾</div>
+  </div>
+
+  <!-- Right: In-Game Actions -->
+  <div class="hud-group">
+    <button id="hudDayShiftBtn" class="hud-btn dayshift" title="Shift Day/Night (Key: T)">⏱ DAY SHIFT</button>
+    <button id="hudPauseBtn" class="hud-btn" title="Pause Game (Key: Esc)">⏸ PAUSE</button>
+    <button id="hudMenuBtn" class="hud-btn danger" title="Return to Main Menu">🏠 MENU</button>
+  </div>
+</div>
+
+<!-- Nitro Bar -->
+<div id="nitro-bar">
+  <div class="nitro-label">⚡ NITRO BOOST</div>
+  <div class="nitro-track"><div id="nitro-fill"></div></div>
+</div>
+
+<!-- Speedometer -->
+<canvas id="speedometer" width="130" height="130"></canvas>
+
+<!-- Controls Hint -->
+<div id="ctrl-hint">
+  <span class="key">← → Steer</span>
+  <span class="key">↑ Gas</span>
+  <span class="key">↓ Brake</span>
+  <span class="key">Space/N Nitro 🔥</span>
+  <span class="key">T Shift Time ☀️</span>
+  <span class="key">Esc Menu 🏠</span>
+</div>
+
+<!-- Main Game Canvas -->
+<canvas id="gc"></canvas>
+
+<script>
+/* ================================================================
+   TURBO RUSH 3D
+   Dynamic Perspective Racing Game with Day Shift & Main Menu Return
+   ================================================================ */
+
+// ── canvas ──────────────────────────────────────────────────────
+const gc  = document.getElementById('gc');
+const ctx = gc.getContext('2d');
+const sc  = document.getElementById('speedometer');
+const sct = sc.getContext('2d');
+const vp  = { x: 0, y: 0 };
+
+function resize(){
+  gc.width  = window.innerWidth;
+  gc.height = window.innerHeight;
+  vp.x = gc.width / 2;
+  vp.y = gc.height * 0.38;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── Difficulty Presets ──────────────────────────────────────────
+const DIFFS = {
+  veryeasy:{
+    label:'🩵 VERY EASY', mult:0.5,
+    baseSpd:1.2, maxSpd:5,   accel:0.08, brake:0.15,
+    trafficEvery:0,   pickupEvery:75,
+    nitroDeplete:0.2, nitroRefill:0.8,
+    spdScale:0.008,   spdInc:0.0005, maxSpdInc:0.0005,
+    badge:'#64c8ff', badgeBg:'rgba(100,200,255,0.18)',
+    startBtn:'linear-gradient(90deg,#64c8ff,#a78bfa)',
+    noTraffic:true,
+  },
+  easy: {
+    label:'🟢 EASY',  mult:1,
+    baseSpd:2,  maxSpd:8,   accel:0.12, brake:0.20,
+    trafficEvery:90,  pickupEvery:120,
+    nitroDeplete:0.5, nitroRefill:0.30,
+    spdScale:0.012,   spdInc:0.001, maxSpdInc:0.001,
+    badge:'#3ddc84', badgeBg:'rgba(61,220,132,0.18)',
+    startBtn:'linear-gradient(90deg,#3ddc84,#00c6ff)',
+    noTraffic:false,
+  },
+  medium:{
+    label:'🟡 MEDIUM', mult:2,
+    baseSpd:4,  maxSpd:14,  accel:0.20, brake:0.30,
+    trafficEvery:52,  pickupEvery:175,
+    nitroDeplete:0.9, nitroRefill:0.18,
+    spdScale:0.018,   spdInc:0.002, maxSpdInc:0.003,
+    badge:'#f7c948', badgeBg:'rgba(247,201,72,0.18)',
+    startBtn:'linear-gradient(90deg,#f7c948,#ff9f43)',
+    noTraffic:false,
+  },
+  hard:{
+    label:'🔴 HARD',  mult:3,
+    baseSpd:7,  maxSpd:22,  accel:0.30, brake:0.40,
+    trafficEvery:28,  pickupEvery:220,
+    nitroDeplete:1.4, nitroRefill:0.08,
+    spdScale:0.025,   spdInc:0.004, maxSpdInc:0.006,
+    badge:'#ff503c', badgeBg:'rgba(255,80,60,0.18)',
+    startBtn:'linear-gradient(90deg,#ff503c,#ff9f43)',
+    noTraffic:false,
+  },
+};
+
+// ── Day Shift Phases ─────────────────────────────────────────────
+const DAY_PHASES = [
+  {
+    name: 'DAY', icon: '☀️',
+    badgeColor: '#ffd54f', badgeBg: 'rgba(255,213,79,0.2)',
+    skyTop:    [24, 136, 228],
+    skyMid:    [98, 192, 252],
+    skyBottom: [190, 230, 255],
+    sunColor:  '#fff6a8', sunGlow: 'rgba(255,225,120,0.45)',
+    sunYRatio: 0.14, sunSize: 34, hasSun: true, hasMoon: false,
+    starsAlpha: 0,
+    roadBr: 40,
+    kerbRed: '#e53935', kerbWhite: '#ffffff',
+    dashCol: 'rgba(255,230,50,0.9)',
+    treeHue: 120, treeSat: 62, treeLight: 34,
+    horizonGlow: 'rgba(255,245,200,0.22)',
+    headlightGlow: 0.25,
+    cloudAlpha: 0.85, cloudTint: [255, 255, 255]
+  },
+  {
+    name: 'SUNSET', icon: '🌇',
+    badgeColor: '#ff9800', badgeBg: 'rgba(255,152,0,0.2)',
+    skyTop:    [52, 18, 76],
+    skyMid:    [184, 52, 64],
+    skyBottom: [255, 142, 42],
+    sunColor:  '#ff6f22', sunGlow: 'rgba(255,100,30,0.65)',
+    sunYRatio: 0.33, sunSize: 42, hasSun: true, hasMoon: false,
+    starsAlpha: 0.25,
+    roadBr: 28,
+    kerbRed: '#c62828', kerbWhite: '#eddccf',
+    dashCol: 'rgba(255,190,50,0.85)',
+    treeHue: 42, treeSat: 55, treeLight: 25,
+    horizonGlow: 'rgba(255,110,40,0.4)',
+    headlightGlow: 0.75,
+    cloudAlpha: 0.65, cloudTint: [255, 180, 150]
+  },
+  {
+    name: 'NIGHT', icon: '🌙',
+    badgeColor: '#80d8ff', badgeBg: 'rgba(128,216,255,0.2)',
+    skyTop:    [3, 3, 16],
+    skyMid:    [10, 10, 36],
+    skyBottom: [22, 22, 60],
+    sunColor:  '#fffde8', sunGlow: 'rgba(200,220,255,0.3)',
+    sunYRatio: 0.08, sunSize: 25, hasSun: false, hasMoon: true,
+    starsAlpha: 1.0,
+    roadBr: 18,
+    kerbRed: '#dd3333', kerbWhite: '#eeeeee',
+    dashCol: 'rgba(255,220,40,0.75)',
+    treeHue: 120, treeSat: 38, treeLight: 16,
+    horizonGlow: 'rgba(80,80,255,0.18)',
+    headlightGlow: 1.0,
+    cloudAlpha: 0.2, cloudTint: [120, 130, 180]
+  },
+  {
+    name: 'DAWN', icon: '🌅',
+    badgeColor: '#f48fb1', badgeBg: 'rgba(244,143,177,0.2)',
+    skyTop:    [30, 20, 68],
+    skyMid:    [135, 65, 125],
+    skyBottom: [255, 170, 125],
+    sunColor:  '#ffe082', sunGlow: 'rgba(255,185,130,0.5)',
+    sunYRatio: 0.32, sunSize: 32, hasSun: true, hasMoon: false,
+    starsAlpha: 0.35,
+    roadBr: 30,
+    kerbRed: '#d32f2f', kerbWhite: '#eee4e0',
+    dashCol: 'rgba(255,220,60,0.85)',
+    treeHue: 80, treeSat: 46, treeLight: 28,
+    horizonGlow: 'rgba(255,195,140,0.32)',
+    headlightGlow: 0.55,
+    cloudAlpha: 0.6, cloudTint: [255, 210, 210]
+  }
+];
+
+// ── State ────────────────────────────────────────────────────────
+let running   = false;
+let isPaused  = false;
+let selColor  = '#ff4422';
+let selDiff   = 'veryeasy';
+let D         = DIFFS.veryeasy;
+let score = 0, hiScore = 0, dist = 0;
+let spd = 0, maxSpd = 5, baseSpd = 1.2;
+let nitro = 100, nitroOn = false;
+let frame = 0;
+
+// Day Shift progress
+let dayTime = 0.0; // 0=Day, 1=Sunset, 2=Night, 3=Dawn
+
+// ── Road Geometry Constants ──────────────────────────────────────
+const LANES  = 5;
+const HALF_W = () => gc.width * 0.42;
+
+// ── Objects ──────────────────────────────────────────────────────
+const player  = { lf: 2.0, tilt: 0, color: '#ff4422' };
+const traffic = [], pickups = [], parts = [];
+const marks   = [], trees  = [];
+
+const TC = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6',
+            '#1abc9c','#e67e22','#ff6b9d','#00d2ff','#a8e063'];
+
+for(let i=0;i<20;i++) marks.push({ d: i/20 });
+for(let i=0;i<36;i++) trees.push(newTree());
+
+function newTree(){
+  return{
+    d: Math.random(),
+    side: Math.random()>0.5 ? 1 : -1,
+    kind: Math.random()>0.45 ? 'tree' : 'bld',
+    h: 50 + Math.random()*160,
+    bw: 22 + Math.random()*30
+  };
+}
+
+// Background stars
+const stars = Array.from({length: 220}, () => ({
+  x: Math.random(), y: Math.random() * 0.37,
+  r: 0.4 + Math.random() * 1.6, p: Math.random() * Math.PI * 2,
+}));
+
+// Fluffy clouds
+const clouds = Array.from({length: 7}, () => ({
+  x: Math.random() * 1.6 - 0.3,
+  y: 0.04 + Math.random() * 0.22,
+  w: 65 + Math.random() * 110,
+  h: 22 + Math.random() * 32,
+  speed: 0.00018 + Math.random() * 0.0003
+}));
+
+// ── Keyboard Controls ────────────────────────────────────────────
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (e.code === 'Escape') {
+    if (running) togglePause();
+    e.preventDefault();
+    return;
+  }
+  if (e.code === 'KeyT' && running) {
+    shiftTimeOfDay();
+    e.preventDefault();
+    return;
+  }
+  if (e.code === 'KeyP' && running) {
+    togglePause();
+    e.preventDefault();
+    return;
+  }
+  keys[e.code] = true;
+  if ((e.code === 'Space' || e.code === 'KeyN') && nitro > 0) nitroOn = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
+    e.preventDefault();
+  }
+}, false);
+
+window.addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if (e.code === 'Space' || e.code === 'KeyN') nitroOn = false;
+}, false);
+
+// ── Perspective Math ─────────────────────────────────────────────
+function pow(d){ return Math.pow(Math.max(0, d), 0.72); }
+function projX(lane, d){
+  const t = pow(d), hw = HALF_W() * t, step = hw * 2 / LANES;
+  return vp.x - hw + lane * step + step / 2;
+}
+function projY(d){ return vp.y + (gc.height - vp.y) * pow(d); }
+function projSz(base, d){ return base * pow(d); }
+function edgeX(side, d){ return vp.x + side * HALF_W() * pow(d); }
+
+// ── Color & Interpolation Helpers ────────────────────────────────
+function lerp(a, b, t){ return a + (b - a) * t; }
+function lerpColor(c1, c2, t){
+  return [
+    Math.round(lerp(c1[0], c2[0], t)),
+    Math.round(lerp(c1[1], c2[1], t)),
+    Math.round(lerp(c1[2], c2[2], t))
+  ];
+}
+function rgbStr(c, a = 1){
+  return a === 1 ? `rgb(${c[0]},${c[1]},${c[2]})` : `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+}
+function parseRGB(hex){
+  hex = hex.trim();
+  if(hex.length === 4) hex = '#' + hex[1]+hex[1]+hex[2]+hex[2]+hex[3]+hex[3];
+  return [parseInt(hex.slice(1,3),16)||0, parseInt(hex.slice(3,5),16)||0, parseInt(hex.slice(5,7),16)||0];
+}
+function lighten(hex, a){
+  const [r,g,b] = parseRGB(hex);
+  return `rgb(${Math.min(255,r+a)},${Math.min(255,g+a)},${Math.min(255,b+a)})`;
+}
+function darken(hex, a){
+  const [r,g,b] = parseRGB(hex);
+  return `rgb(${Math.max(0,r-a)},${Math.max(0,g-a)},${Math.max(0,b-a)})`;
+}
+
+// ── Dynamic Day Shift Current Values ─────────────────────────────
+function getCurrentEnv(){
+  const p1Idx = Math.floor(dayTime) % 4;
+  const p2Idx = (p1Idx + 1) % 4;
+  const t = dayTime - Math.floor(dayTime);
+  const p1 = DAY_PHASES[p1Idx], p2 = DAY_PHASES[p2Idx];
+
+  return {
+    phase: p1,
+    nextPhase: p2,
+    t: t,
+    skyTop:    lerpColor(p1.skyTop,    p2.skyTop,    t),
+    skyMid:    lerpColor(p1.skyMid,    p2.skyMid,    t),
+    skyBottom: lerpColor(p1.skyBottom, p2.skyBottom, t),
+    starsAlpha: lerp(p1.starsAlpha, p2.starsAlpha, t),
+    roadBr: Math.round(lerp(p1.roadBr, p2.roadBr, t)),
+    cloudAlpha: lerp(p1.cloudAlpha, p2.cloudAlpha, t),
+    cloudTint: lerpColor(p1.cloudTint, p2.cloudTint, t),
+    headlightGlow: lerp(p1.headlightGlow, p2.headlightGlow, t),
+    treeHue: lerp(p1.treeHue, p2.treeHue, t),
+    treeSat: lerp(p1.treeSat, p2.treeSat, t),
+    treeLight: lerp(p1.treeLight, p2.treeLight, t)
+  };
+}
+
+// ── Draw Sky & Celestial Bodies ──────────────────────────────────
+function drawSky(env){
+  // Sky Gradient
+  const g = ctx.createLinearGradient(0, 0, 0, vp.y * 1.18);
+  g.addColorStop(0, rgbStr(env.skyTop));
+  g.addColorStop(0.55, rgbStr(env.skyMid));
+  g.addColorStop(1, rgbStr(env.skyBottom));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, gc.width, gc.height);
+
+  // Stars (fade in at sunset & night)
+  if (env.starsAlpha > 0.05) {
+    stars.forEach(s => {
+      const tw = (0.4 + 0.6 * Math.abs(Math.sin(frame * 0.018 + s.p))) * env.starsAlpha;
+      ctx.fillStyle = `rgba(255,255,255,${tw})`;
+      ctx.beginPath();
+      ctx.arc(s.x * gc.width, s.y * gc.height, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // Sun
+  const curPhase = env.phase;
+  if (curPhase.hasSun || env.nextPhase.hasSun) {
+    const sunAlpha = curPhase.hasSun ? (1 - env.t * (env.nextPhase.hasSun ? 0 : 1)) : env.t;
+    const sunY = (curPhase.sunYRatio + (env.nextPhase.sunYRatio - curPhase.sunYRatio) * env.t) * gc.height;
+    const sunX = gc.width * 0.62;
+    const sz = curPhase.sunSize;
+
+    // Outer warm glow
+    const sg = ctx.createRadialGradient(sunX, sunY, sz * 0.2, sunX, sunY, sz * 3.5);
+    sg.addColorStop(0, curPhase.sunGlow);
+    sg.addColorStop(1, 'rgba(255,200,80,0)');
+    ctx.fillStyle = sg;
+    ctx.globalAlpha = Math.max(0, sunAlpha);
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sz * 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sun orb
+    ctx.fillStyle = curPhase.sunColor;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sz, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Moon
+  if (curPhase.hasMoon || env.nextPhase.hasMoon) {
+    const moonAlpha = curPhase.hasMoon ? (1 - env.t * (env.nextPhase.hasMoon ? 0 : 1)) : env.t;
+    const mx = gc.width * 0.82, my = gc.height * 0.08;
+
+    ctx.globalAlpha = Math.max(0, moonAlpha);
+    // Lunar halo
+    const mg = ctx.createRadialGradient(mx, my, 10, mx, my, 55);
+    mg.addColorStop(0, 'rgba(200,230,255,0.4)');
+    mg.addColorStop(1, 'rgba(200,230,255,0)');
+    ctx.fillStyle = mg;
+    ctx.beginPath(); ctx.arc(mx, my, 55, 0, Math.PI * 2); ctx.fill();
+
+    // Moon body
+    ctx.fillStyle = '#fffde8';
+    ctx.beginPath(); ctx.arc(mx, my, 24, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = rgbStr(env.skyMid);
+    ctx.beginPath(); ctx.arc(mx + 7, my - 5, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Drifting Clouds
+  if (env.cloudAlpha > 0.05) {
+    ctx.fillStyle = `rgba(${env.cloudTint[0]},${env.cloudTint[1]},${env.cloudTint[2]},${env.cloudAlpha * 0.75})`;
+    clouds.forEach(c => {
+      c.x += c.speed;
+      if (c.x > 1.3) c.x = -0.3;
+      const cx = c.x * gc.width, cy = c.y * gc.height;
+      drawFluffyCloud(cx, cy, c.w, c.h);
+    });
+  }
+}
+
+function drawFluffyCloud(x, y, w, h){
+  ctx.beginPath();
+  ctx.arc(x, y, h * 0.6, 0, Math.PI * 2);
+  ctx.arc(x + w * 0.28, y - h * 0.22, h * 0.75, 0, Math.PI * 2);
+  ctx.arc(x + w * 0.62, y - h * 0.08, h * 0.62, 0, Math.PI * 2);
+  ctx.arc(x + w * 0.88, y + h * 0.1, h * 0.48, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ── Draw Road ────────────────────────────────────────────────────
+function drawRoad(env){
+  const steps = 42;
+  const p = env.phase;
+
+  for(let i=0; i<steps; i++){
+    const d0 = i/steps, d1 = (i+1)/steps;
+    const lx0 = edgeX(-1,d0), rx0 = edgeX(1,d0), y0 = projY(d0);
+    const lx1 = edgeX(-1,d1), rx1 = edgeX(1,d1), y1 = projY(d1);
+
+    // Alternating road asphalt brightness
+    const br = (i % 2 === 0) ? env.roadBr : (env.roadBr + 3);
+    ctx.fillStyle = `rgb(${br},${br},${br+5})`;
+    ctx.beginPath();
+    ctx.moveTo(lx0,y0); ctx.lineTo(rx0,y0);
+    ctx.lineTo(rx1,y1); ctx.lineTo(lx1,y1);
+    ctx.closePath(); ctx.fill();
+
+    // Kerbs
+    const kw0 = (rx0-lx0) * 0.038, kw1 = (rx1-lx1) * 0.038;
+    const kc = (Math.floor(d0 * 20) % 2 === 0) ? p.kerbRed : p.kerbWhite;
+    ctx.fillStyle = kc;
+    // Left Kerb
+    ctx.beginPath();
+    ctx.moveTo(lx0,y0); ctx.lineTo(lx0-kw0,y0);
+    ctx.lineTo(lx1-kw1,y1); ctx.lineTo(lx1,y1);
+    ctx.closePath(); ctx.fill();
+    // Right Kerb
+    ctx.beginPath();
+    ctx.moveTo(rx0,y0); ctx.lineTo(rx0+kw0,y0);
+    ctx.lineTo(rx1+kw1,y1); ctx.lineTo(rx1,y1);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // Road Lane Dashes
+  marks.forEach(m => {
+    if(m.d < 0.02) return;
+    const y  = projY(m.d);
+    const y2 = projY(Math.min(1, m.d + 0.032));
+    const t  = pow(m.d);
+    for(let ln=1; ln<LANES; ln++){
+      const hw = HALF_W() * t, step = hw * 2 / LANES;
+      const x  = vp.x - hw + ln * step;
+      const w  = Math.max(1.5, 4 * t);
+      ctx.fillStyle = p.dashCol;
+      ctx.fillRect(x - w/2, y, w, y2 - y);
+    }
+  });
+
+  // Dynamic Horizon Glow
+  const hg = ctx.createLinearGradient(0, vp.y - 20, 0, vp.y + 20);
+  hg.addColorStop(0, 'rgba(0,0,0,0)');
+  hg.addColorStop(0.5, p.horizonGlow);
+  hg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = hg;
+  ctx.fillRect(0, vp.y - 20, gc.width, 40);
+}
+
+// ── Draw Scenery (Trees & Buildings) ─────────────────────────────
+function drawScenery(env){
+  [...trees].sort((a,b) => a.d - b.d).forEach(s => {
+    if(s.d < 0.05) return;
+    const ex  = edgeX(s.side, s.d);
+    const ey  = projY(s.d);
+    const sc2 = pow(s.d);
+    const bx  = ex + s.side * sc2 * gc.width * 0.09;
+    const bh  = s.h * sc2;
+
+    if(s.kind === 'tree'){
+      // Trunk
+      ctx.fillStyle = '#4a2f14';
+      ctx.fillRect(bx - 3*sc2, ey - bh*0.3, 6*sc2, bh*0.3);
+      // Leaves with dynamic time-of-day coloring
+      ctx.fillStyle = `hsl(${env.treeHue},${env.treeSat}%,${env.treeLight}%)`;
+      [[0,-0.46,0.28], [-0.15,-0.33,0.20], [0.15,-0.33,0.20]].forEach(([ox,oy,r]) => {
+        ctx.beginPath();
+        ctx.arc(bx + bh*ox, ey + bh*oy, bh*r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    } else {
+      // Skyscraper
+      const bw = s.bw * sc2;
+      const bg = ctx.createLinearGradient(bx - bw/2, ey - bh, bx + bw/2, ey);
+      if (env.phase.name === 'NIGHT') {
+        bg.addColorStop(0, '#0c1022');
+        bg.addColorStop(1, '#05070e');
+      } else if (env.phase.name === 'SUNSET') {
+        bg.addColorStop(0, '#5a223a');
+        bg.addColorStop(1, '#251220');
+      } else {
+        bg.addColorStop(0, '#3a506b');
+        bg.addColorStop(1, '#1b263b');
+      }
+      ctx.fillStyle = bg;
+      ctx.fillRect(bx - bw/2, ey - bh, bw, bh);
+
+      // Windows
+      const wR = Math.max(1, Math.floor(bh / 14));
+      const wC = Math.max(1, Math.floor(bw / 9));
+      const isNight = (env.phase.name === 'NIGHT' || env.phase.name === 'SUNSET');
+
+      for(let r=0; r<wR; r++){
+        for(let c=0; c<wC; c++){
+          if(Math.random() > 0.4){
+            const wx = bx - bw/2 + (c + 0.5) * bw / wC;
+            const wy = ey - bh   + (r + 0.5) * bh / (wR + 1);
+            const ws = Math.max(1.5, 2.8 * sc2);
+
+            if(isNight){
+              ctx.fillStyle = Math.random() > 0.3 ? 'rgba(255,225,110,0.85)' : 'rgba(80,210,255,0.75)';
+            } else {
+              ctx.fillStyle = 'rgba(210,235,255,0.65)';
+            }
+            ctx.fillRect(wx - ws/2, wy - ws/2, ws, ws);
+          }
+        }
+      }
+    }
+  });
+}
+
+// ── Draw 3D Dynamic Car ──────────────────────────────────────────
+function drawCar(cx, cy, sz, color, isPlayer, tilt, env){
+  const w  = sz * 0.52;
+  const h  = sz;
+  const hh = sz * 0.30;
+  const hGlow = env ? env.headlightGlow : 0.8;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(tilt * 0.07);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.32)';
+  ctx.beginPath();
+  ctx.ellipse(0, h * 0.47, w * 0.62, sz * 0.055, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Headlight Light Beam Projection (onto road ahead)
+  if (isPlayer && hGlow > 0.4) {
+    const beamGrad = ctx.createLinearGradient(0, -h * 0.4, 0, -h * 2.2);
+    beamGrad.addColorStop(0, `rgba(255,255,210,${0.38 * hGlow})`);
+    beamGrad.addColorStop(1, 'rgba(255,255,210,0)');
+    ctx.fillStyle = beamGrad;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.6, -h * 0.4);
+    ctx.lineTo(-w * 1.6, -h * 2.2);
+    ctx.lineTo(w * 1.6,  -h * 2.2);
+    ctx.lineTo(w * 0.6,  -h * 0.4);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Car Body
+  const bg = ctx.createLinearGradient(-w, -h * 0.48, w, h * 0.48);
+  bg.addColorStop(0, lighten(color, 45));
+  bg.addColorStop(0.5, color);
+  bg.addColorStop(1, darken(color, 45));
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.roundRect(-w, -h * 0.48, w * 2, h * 0.88, [sz * 0.09, sz * 0.09, sz * 0.06, sz * 0.06]);
+  ctx.fill();
+
+  // Roof / Cabin
+  const rg = ctx.createLinearGradient(-w * 0.55, -h * 0.48 - hh, w * 0.55, -h * 0.12);
+  rg.addColorStop(0, lighten(color, 22));
+  rg.addColorStop(1, darken(color, 22));
+  ctx.fillStyle = rg;
+  ctx.beginPath();
+  ctx.roundRect(-w * 0.52, -h * 0.48 - hh, w * 1.04, hh + h * 0.06, sz * 0.08);
+  ctx.fill();
+
+  // Windshield
+  ctx.fillStyle = 'rgba(120,210,255,0.55)';
+  ctx.beginPath();
+  ctx.roundRect(-w * 0.40, -h * 0.48 - hh * 0.82, w * 0.80, hh * 0.52, sz * 0.04);
+  ctx.fill();
+
+  // Rear window
+  ctx.fillStyle = 'rgba(80,160,230,0.38)';
+  ctx.beginPath();
+  ctx.roundRect(-w * 0.36, -h * 0.18, w * 0.72, hh * 0.42, sz * 0.03);
+  ctx.fill();
+
+  // Headlights
+  [[-w * 0.62, -h * 0.43], [w * 0.62, -h * 0.43]].forEach(([lx, ly]) => {
+    if(isPlayer && hGlow > 0.3){
+      const gw = ctx.createRadialGradient(lx, ly, 0, lx, ly, sz * 0.22);
+      gw.addColorStop(0, `rgba(255,255,210,${0.85 * hGlow})`);
+      gw.addColorStop(1, 'rgba(255,255,210,0)');
+      ctx.fillStyle = gw;
+      ctx.beginPath();
+      ctx.arc(lx, ly, sz * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = isPlayer ? '#ffffaa' : '#ffcccc';
+    ctx.beginPath();
+    ctx.arc(lx, ly, sz * 0.042, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Taillights
+  [[-w * 0.62, h * 0.37], [w * 0.62, h * 0.37]].forEach(([lx, ly]) => {
+    ctx.fillStyle = '#ff2200';
+    ctx.beginPath();
+    ctx.arc(lx, ly, sz * 0.042, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Wheels
+  [[-w * 0.9, -h * 0.24], [w * 0.9, -h * 0.24], [-w * 0.9, h * 0.24], [w * 0.9, h * 0.24]].forEach(([wx, wy]) => {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.ellipse(wx, wy, sz * 0.115, sz * 0.068, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#bbb';
+    ctx.beginPath();
+    ctx.arc(wx, wy, sz * 0.042, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#eee';
+    ctx.beginPath();
+    ctx.arc(wx, wy, sz * 0.016, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Nitro Flames
+  if(isPlayer && nitroOn && nitro > 0){
+    for(let f=0; f<3; f++){
+      const fx = (f - 1) * w * 0.48;
+      const fy = h * 0.46;
+      const fl = (7 + Math.random() * 12) * sz * 0.055;
+      const fg = ctx.createLinearGradient(fx, fy, fx, fy + fl);
+      fg.addColorStop(0, `hsla(${195 + f * 28},100%,72%,0.95)`);
+      fg.addColorStop(0.5, `hsla(${28 + f * 36},100%,62%,0.7)`);
+      fg.addColorStop(1, 'rgba(255,90,0,0)');
+      ctx.fillStyle = fg;
+      ctx.beginPath();
+      ctx.moveTo(fx - sz * 0.055, fy);
+      ctx.lineTo(fx + sz * 0.055, fy);
+      ctx.lineTo(fx + sz * 0.018, fy + fl);
+      ctx.lineTo(fx, fy + fl * 0.78);
+      ctx.lineTo(fx - sz * 0.018, fy + fl);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+// ── Draw Pickup ──────────────────────────────────────────────────
+function drawPickup(bx, by, sz){
+  const p = 0.82 + 0.18 * Math.sin(frame * 0.14);
+  ctx.save();
+  ctx.translate(bx, by);
+  ctx.scale(p, p);
+  const g = ctx.createRadialGradient(0, 0, sz * 0.08, 0, 0, sz * 0.48);
+  g.addColorStop(0, 'rgba(0,230,255,0.92)');
+  g.addColorStop(1, 'rgba(0,100,255,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, sz * 0.48, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.font = `${sz * 0.52}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⚡', 0, 0);
+  ctx.restore();
+}
+
+// ── Draw Speedometer ─────────────────────────────────────────────
+function drawSpeedo(){
+  const c = sct, cw = 130, cx = 65, cy = 65, r = 54;
+  c.clearRect(0, 0, cw, cw);
+  const bg = c.createRadialGradient(cx, cy, 4, cx, cy, r);
+  bg.addColorStop(0, '#18182e'); bg.addColorStop(1, '#08080f');
+  c.fillStyle = bg;
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.fill();
+
+  c.strokeStyle = 'rgba(255,255,255,0.12)';
+  c.lineWidth = 8;
+  c.beginPath();
+  c.arc(cx, cy, r - 10, Math.PI * 0.75, Math.PI * 2.25, false);
+  c.stroke();
+
+  const ratio = spd / maxSpd;
+  const sa = Math.PI * 0.75, ea = sa + ratio * Math.PI * 1.5;
+  const ag = c.createLinearGradient(cx - r, cy, cx + r, cy);
+  const arcCol = selDiff==='veryeasy'?'#64c8ff':selDiff==='easy'?'#3ddc84':selDiff==='medium'?'#f7c948':'#ff503c';
+  ag.addColorStop(0, '#00c6ff');
+  ag.addColorStop(1, nitroOn ? '#ff6b35' : arcCol);
+  c.strokeStyle = ag; c.lineWidth = 8; c.lineCap = 'round';
+  c.beginPath(); c.arc(cx, cy, r - 10, sa, ea, false); c.stroke();
+
+  const na = sa + ratio * Math.PI * 1.5;
+  c.strokeStyle = '#ff6b35'; c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(cx, cy);
+  c.lineTo(cx + Math.cos(na) * (r - 16), cy + Math.sin(na) * (r - 16));
+  c.stroke();
+  c.fillStyle = '#ff6b35';
+  c.beginPath(); c.arc(cx, cy, 4, 0, Math.PI * 2); c.fill();
+
+  c.fillStyle = '#fff'; c.font = 'bold 17px Segoe UI';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(Math.round(spd * 15), cx, cy);
+  c.fillStyle = 'rgba(255,255,255,0.5)'; c.font = '8px Segoe UI';
+  c.fillText('km/h', cx, cy + 14);
+}
+
+// ── Particle System ──────────────────────────────────────────────
+function spawnParts(x, y){
+  for(let i=0; i<10; i++){
+    parts.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 5,
+      vy: -Math.random() * 4,
+      life: 1,
+      col: `hsl(${170 + Math.random() * 60},100%,62%)`
+    });
+  }
+}
+function updateParts(){
+  for(let i=parts.length-1; i>=0; i--){
+    const p = parts[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.035;
+    if(p.life <= 0){ parts.splice(i, 1); continue; }
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.col;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4 * p.life, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ── Spawning Helpers ─────────────────────────────────────────────
+function spawnTraffic(){
+  if(D.noTraffic) return;
+  traffic.push({
+    lane: Math.floor(Math.random() * LANES),
+    d: 0.02,
+    color: TC[Math.floor(Math.random() * TC.length)],
+    relSpd: 0.7 + Math.random() * 0.5
+  });
+}
+function spawnPickup(){
+  pickups.push({ lane: Math.floor(Math.random() * LANES), d: 0.02 });
+}
+
+// ── Collision Detection ──────────────────────────────────────────
+function checkCollisions(){
+  for(let i=traffic.length-1; i>=0; i--){
+    const t = traffic[i];
+    if(t.d > 0.84 && t.d < 1.0 && Math.abs(t.lane - player.lf) < 0.72){
+      gameOver(); return;
+    }
+  }
+  for(let i=pickups.length-1; i>=0; i--){
+    const b = pickups[i];
+    if(b.d > 0.84 && Math.abs(b.lane - player.lf) < 0.72){
+      nitro = Math.min(100, nitro + 36);
+      score += 60 * D.mult;
+      spawnParts(projX(b.lane, b.d), projY(b.d));
+      pickups.splice(i, 1);
+    }
+  }
+}
+
+// ── Game Over Flow ───────────────────────────────────────────────
+function gameOver(){
+  running = false;
+  isPaused = false;
+  hiScore = Math.max(hiScore, score);
+  document.getElementById('goText').textContent = `Distance: ${Math.round(dist)}m · Score: ${score}`;
+  const gm = document.getElementById('goMult');
+  gm.textContent = `${D.label} · ×${D.mult} multiplier`;
+  gm.style.background = D.badgeBg;
+  gm.style.color = D.badge;
+  gm.style.border = `1px solid ${D.badge}`;
+  document.getElementById('gameOver').style.display = 'flex';
+}
+
+// ── Pause Flow ───────────────────────────────────────────────────
+function togglePause(){
+  if (!running) return;
+  isPaused = !isPaused;
+  document.getElementById('pauseModal').style.display = isPaused ? 'flex' : 'none';
+  if (!isPaused) loop();
+}
+
+// ── Return to Main Menu Flow ─────────────────────────────────────
+function returnToMainMenu(){
+  running  = false;
+  isPaused = false;
+  hiScore  = Math.max(hiScore, score);
+  document.getElementById('sBest').textContent = hiScore;
+  document.getElementById('gameOver').style.display = 'none';
+  document.getElementById('pauseModal').style.display = 'none';
+  document.getElementById('overlay').style.display = 'flex';
+}
+
+// ── Day Shift Controls & Toast ───────────────────────────────────
+function shiftTimeOfDay(){
+  dayTime = (Math.floor(dayTime + 1)) % 4;
+  updateDayShiftBadge();
+  const current = DAY_PHASES[Math.floor(dayTime) % 4];
+  showToast(`⏱ Shifted to ${current.icon} ${current.name}`);
+}
+
+function updateDayShiftBadge(){
+  const current = DAY_PHASES[Math.floor(dayTime) % 4];
+  const b = document.getElementById('day-badge');
+  b.textContent = `${current.icon} ${current.name} ▾`;
+  b.style.borderColor = current.badgeColor;
+  b.style.color = current.badgeColor;
+  b.style.background = current.badgeBg;
+}
+
+let toastTimer = null;
+function showToast(msg){
+  const el = document.getElementById('toastNotice');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.remove('show');
+  }, 2200);
+}
+
+// ── HUD Updates ──────────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('sScore').textContent = score;
+  document.getElementById('sSpeed').textContent = Math.round(spd * 15) + ' km/h';
+  document.getElementById('sBest').textContent  = Math.max(hiScore, score);
+  const nf = document.getElementById('nitro-fill');
+  nf.style.width = nitro + '%';
+  nf.style.background = nitro < 20
+    ? 'linear-gradient(90deg,#ff4444,#ff6b35)'
+    : 'linear-gradient(90deg,#00c6ff,#0072ff)';
+}
+
+// ── Main Update Frame ────────────────────────────────────────────
+function update(){
+  frame++;
+
+  // Gradually advance Day Shift naturally (1 full cycle every 75 seconds)
+  dayTime = (dayTime + (1 / 4500)) % 4;
+  if (frame % 30 === 0) updateDayShiftBadge();
+
+  // Speed controls
+  if(keys['ArrowUp'] || keys['KeyW'])        spd = Math.min(maxSpd, spd + D.accel);
+  else if(keys['ArrowDown'] || keys['KeyS']) spd = Math.max(0, spd - D.brake);
+  else                                       spd += (baseSpd - spd) * 0.05;
+  if(nitroOn && nitro > 0)                   spd = Math.min(maxSpd, spd + 0.35);
+
+  // Nitro replenishment / depletion
+  if(nitroOn && nitro > 0) nitro = Math.max(0, nitro - D.nitroDeplete);
+  else if(!nitroOn)        nitro = Math.min(100, nitro + D.nitroRefill);
+  if(nitro === 0) nitroOn = false;
+
+  // Steering
+  if(keys['ArrowLeft'] || keys['KeyA']){
+    player.lf = Math.max(0, player.lf - 0.09);
+    player.tilt = Math.max(-3, player.tilt - 0.35);
+  } else if(keys['ArrowRight'] || keys['KeyD']){
+    player.lf = Math.min(LANES - 1, player.lf + 0.09);
+    player.tilt = Math.min(3, player.tilt + 0.35);
+  } else {
+    player.tilt *= 0.84;
+  }
+
+  // World scrolling
+  const ss = spd * D.spdScale;
+  marks.forEach(m => { m.d += ss; if(m.d > 1) m.d -= 1; });
+  trees.forEach(s => {
+    s.d += ss * 0.5;
+    if(s.d > 1){ Object.assign(s, newTree()); s.d = 0.01; }
+  });
+
+  for(let i=traffic.length-1; i>=0; i--){
+    traffic[i].d += ss * traffic[i].relSpd;
+    if(traffic[i].d > 1.12) traffic.splice(i, 1);
+  }
+  for(let i=pickups.length-1; i>=0; i--){
+    pickups[i].d += ss;
+    if(pickups[i].d > 1.12) pickups.splice(i, 1);
+  }
+
+  // Spawns
+  if(!D.noTraffic && D.trafficEvery > 0 && frame % D.trafficEvery === 0) spawnTraffic();
+  if(frame % D.pickupEvery === 0) spawnPickup();
+
+  // Progress & Difficulty Ramp
+  dist += spd * 0.1;
+  score += Math.floor(spd * 0.45 * D.mult);
+  baseSpd = D.baseSpd + dist * D.spdInc;
+  maxSpd  = D.maxSpd  + dist * D.maxSpdInc;
+
+  checkCollisions();
+  updateHUD();
+}
+
+// ── Draw Frame ───────────────────────────────────────────────────
+function draw(){
+  ctx.clearRect(0, 0, gc.width, gc.height);
+  const env = getCurrentEnv();
+
+  drawSky(env);
+  drawScenery(env);
+  drawRoad(env);
+
+  // Traffic Cars
+  [...traffic].sort((a,b) => a.d - b.d).forEach(t => {
+    if(t.d < 0.04) return;
+    const tx = projX(t.lane, t.d);
+    const ty = projY(t.d);
+    const tsz = projSz(58, t.d);
+    drawCar(tx, ty - tsz * 0.48, tsz, t.color, false, 0, env);
+  });
+
+  // Pickups
+  pickups.forEach(b => {
+    if(b.d < 0.04) return;
+    const bsz = projSz(32, b.d);
+    drawPickup(projX(b.lane, b.d), projY(b.d) - bsz * 0.4, bsz);
+  });
+
+  // Player Car
+  const pd  = 0.97;
+  const psz = projSz(64, pd);
+  drawCar(projX(player.lf, pd), projY(pd) - psz * 0.52, psz, player.color, true, player.tilt, env);
+
+  updateParts();
+  drawSpeedo();
+}
+
+// ── Main Animation Loop ──────────────────────────────────────────
+function loop(){
+  if(!running || isPaused) return;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ── Start Game ───────────────────────────────────────────────────
+function startGame(){
+  D = DIFFS[selDiff];
+  score = 0; dist = 0; spd = 2; nitro = 100; nitroOn = false;
+  baseSpd = D.baseSpd; maxSpd = D.maxSpd; frame = 0;
+  player.lf = 2; player.tilt = 0; player.color = selColor;
+
+  Object.keys(keys).forEach(k => keys[k] = false);
+  traffic.length = 0; pickups.length = 0; parts.length = 0;
+
+  if(!D.noTraffic){
+    for(let i=0; i<6; i++) spawnTraffic();
+  }
+
+  // Update HUD difficulty badge
+  const badge = document.getElementById('diff-badge');
+  badge.textContent = D.label;
+  badge.style.background = D.badgeBg;
+  badge.style.color = D.badge;
+  badge.style.borderColor = D.badge;
+
+  updateDayShiftBadge();
+
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('gameOver').style.display = 'none';
+  document.getElementById('pauseModal').style.display = 'none';
+
+  running  = true;
+  isPaused = false;
+  loop();
+}
+
+// ── UI Event Listeners ───────────────────────────────────────────
+// Car selection
+document.querySelectorAll('.car-opt').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.car-opt').forEach(e => e.classList.remove('sel'));
+    el.classList.add('sel');
+    selColor = el.dataset.color;
+  });
+});
+
+// Difficulty selection
+document.querySelectorAll('.diff-btn').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(e => e.classList.remove('dsel'));
+    el.classList.add('dsel');
+    selDiff = el.dataset.d;
+    document.getElementById('startBtn').style.background = DIFFS[selDiff].startBtn;
+  });
+});
+
+// Start & Restart buttons
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('restartBtn').addEventListener('click', startGame);
+
+// Return to Main Menu buttons (from in-game HUD, Pause modal, and Game Over)
+document.getElementById('hudMenuBtn').addEventListener('click', returnToMainMenu);
+document.getElementById('pauseMenuBtn').addEventListener('click', returnToMainMenu);
+document.getElementById('menuBtn').addEventListener('click', returnToMainMenu);
+
+// Pause buttons
+document.getElementById('hudPauseBtn').addEventListener('click', togglePause);
+document.getElementById('resumeBtn').addEventListener('click', togglePause);
+
+// Day Shift buttons
+document.getElementById('hudDayShiftBtn').addEventListener('click', shiftTimeOfDay);
+document.getElementById('day-badge').addEventListener('click', shiftTimeOfDay);
+document.getElementById('pauseDayShiftBtn').addEventListener('click', shiftTimeOfDay);
+
+// Initial start button color & day badge
+document.getElementById('startBtn').style.background = DIFFS[selDiff].startBtn;
+updateDayShiftBadge();
+</script>
+</body>
+</html>
